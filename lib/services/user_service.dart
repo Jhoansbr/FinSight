@@ -10,6 +10,7 @@ class UserService {
     final prefs = await SharedPreferences.getInstance();
     final userJson = jsonEncode(usuario.toJson());
     await prefs.setString(_userKey, userJson);
+    print('Usuario guardado: ${usuario.nombreCompleto}');
   }
   
   // Obtener usuario guardado
@@ -18,10 +19,14 @@ class UserService {
     final userJson = prefs.getString(_userKey);
     
     if (userJson != null) {
+      print('Usuario JSON encontrado: $userJson');
       final userMap = jsonDecode(userJson);
-      return Usuario.fromJson(userMap);
+      final user = Usuario.fromJson(userMap);
+      print('Usuario deserializado: ${user.nombreCompleto}');
+      return user;
     }
     
+    print('No se encontró usuario JSON en SharedPreferences');
     return null;
   }
   
@@ -34,6 +39,8 @@ class UserService {
   // Cerrar sesión
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_userKey);
+    // NO eliminar el usuario guardado para permitir autenticación biométrica
+    // await prefs.remove(_userKey);
+    print('Sesión cerrada, pero usuario guardado para autenticación biométrica');
   }
 }

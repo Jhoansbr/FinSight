@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/user_service.dart';
+import '../../services/biometric_settings_service.dart';
 import '../Login/Login.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -14,7 +15,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _transactionsNotifications = true;
   bool _budgetAlerts = true;
   bool _weeklyReports = true;
-  bool _biometricAuth = true;
+  bool _biometricAuth = false;
   String _selectedCurrency = 'Peso Colombiano (COP)';
   String _selectedLocation = 'Colombia';
 
@@ -28,6 +29,12 @@ class _SettingsPageState extends State<SettingsPage> {
   final TextEditingController _occupationController = TextEditingController(text: 'Profesional');
 
   @override
+  void initState() {
+    super.initState();
+    _loadBiometricSettings();
+  }
+
+  @override
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
@@ -37,6 +44,13 @@ class _SettingsPageState extends State<SettingsPage> {
     _countryController.dispose();
     _occupationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadBiometricSettings() async {
+    final isEnabled = await BiometricSettingsService.isBiometricEnabled();
+    setState(() {
+      _biometricAuth = isEnabled;
+    });
   }
 
   @override
@@ -90,6 +104,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "settings_fab",
         onPressed: () {
           // Add new setting action
         },
@@ -660,10 +675,12 @@ class _SettingsPageState extends State<SettingsPage> {
               'Autenticación Biométrica',
               'Huella dactilar o Face ID',
               _biometricAuth,
-              (value) {
+              (value) async {
                 setState(() {
                   _biometricAuth = value;
                 });
+                // Guardar la configuración
+                await BiometricSettingsService.toggleBiometric(value);
               },
             ),
             const Divider(height: 1),

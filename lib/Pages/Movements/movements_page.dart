@@ -86,6 +86,7 @@ class _MovementsPageState extends State<MovementsPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "movements_fab",
         onPressed: () {},
         backgroundColor: const Color(0xFF4CAF50),
         child: const Icon(Icons.add, color: Colors.white),

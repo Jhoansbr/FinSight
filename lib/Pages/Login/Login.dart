@@ -3,7 +3,8 @@ import '../registration/registration_shell.dart';
 import '../../core/widgets/main_navigation.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
-import '../../models/usuario.dart';
+import '../../services/biometric_service.dart';
+import '../../services/biometric_settings_service.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -17,12 +18,107 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _rememberMe = false;
   String? _errorMessage;
+  bool _biometricAvailable = false;
+  bool _biometricEnrolled = false;
+  bool _hasUserSaved = false;
+  bool _biometricEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricAvailability();
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    final isAvailable = await BiometricService.isBiometricAvailable();
+    final isEnrolled = await BiometricService.hasBiometricEnrolled();
+    final user = await UserService.getCurrentUser();
+    final hasUser = user != null;
+    final isEnabled = await BiometricSettingsService.isBiometricEnabled();
+    
+    // Debug: Imprimir información del usuario
+    if (user != null) {
+      print('Usuario guardado encontrado: ${user.nombreCompleto}');
+    } else {
+      print('No se encontró usuario guardado');
+    }
+    
+    print('Biométrica disponible: $isAvailable, Configurada: $isEnrolled, Habilitada: $isEnabled');
+    
+    setState(() {
+      _biometricAvailable = isAvailable;
+      _biometricEnrolled = isEnrolled;
+      _hasUserSaved = hasUser;
+      _biometricEnabled = isEnabled;
+    });
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    if (!_biometricAvailable || !_biometricEnrolled) {
+      setState(() {
+        _errorMessage = 'La autenticación biométrica no está disponible o configurada';
+      });
+      return;
+    }
+
+    if (!_biometricEnabled) {
+      setState(() {
+        _errorMessage = 'La autenticación biométrica está deshabilitada en la configuración';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final result = await BiometricService.authenticateWithBiometrics(
+        reason: 'Autentícate para acceder a FinSight',
+      );
+
+      if (result.success) {
+        // Verificar usuario guardado DESPUÉS de la autenticación biométrica exitosa
+        final user = await UserService.getCurrentUser();
+        print('Autenticación biométrica exitosa. Verificando usuario...');
+        
+        if (user != null) {
+          print('Usuario encontrado: ${user.nombreCompleto}. Navegando al dashboard...');
+          // Navegar directamente al dashboard
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const MainNavigation()),
+            );
+          }
+        } else {
+          print('ERROR: No se encontró usuario guardado después de autenticación biométrica exitosa');
+          setState(() {
+            _errorMessage = 'No se encontró información de usuario. Inicia sesión con email y contraseña primero';
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = result.errorMessage ?? 'Error en la autenticación biométrica';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error inesperado: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -47,6 +143,11 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result['success']) {
         // Guardar usuario en SharedPreferences
         await UserService.saveUser(result['usuario']);
+        
+        // Actualizar estado para mostrar botón biométrico en futuros logins
+        setState(() {
+          _hasUserSaved = true;
+        });
         
         if (mounted) {
           Navigator.pushReplacement(
@@ -243,11 +344,12 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
 
               // Usar huella digital
-              OutlinedButton.icon(
-                icon: const Icon(Icons.fingerprint),
-                label: const Text("Usar huella dactilar"),
-                onPressed: _isLoading ? null : _handleLogin,
-              ),
+              if (_biometricAvailable && _biometricEnrolled && _hasUserSaved && _biometricEnabled)
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.fingerprint),
+                  label: const Text("Usar huella dactilar"),
+                  onPressed: _isLoading ? null : _handleBiometricLogin,
+                ),
               const SizedBox(height: 20),
 
               // Redes sociales - CORREGIDO PARA EVITAR OVERFLOW

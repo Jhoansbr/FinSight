@@ -54,6 +54,7 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "home_fab",
         onPressed: () {
           // Acción para agregar transacción
         },

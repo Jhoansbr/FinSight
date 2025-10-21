@@ -48,6 +48,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "analysis_fab",
         onPressed: () {
           // Add new analysis action
         },
